@@ -1,11 +1,24 @@
-use std::io;
+use std::{convert::TryInto, io};
 
-// use crate::common::*;
-use super::{ExitCode, Registers, Stack};
+use super::{ExecutionError, InputError, OutputError, Registers, Stack};
 use crate::{
-    machine_code::read_op,
+    machine_code::{Decompile, OpCode},
     models::{Op, Value},
 };
+
+/// Result of successful operation execution.
+///
+/// Basically it tells what to do next.
+pub enum NextOperation {
+    /// Program has not terminated jet, execute operation specified offset.
+    Offset(isize),
+
+    /// Program terminated, don't do anything.
+    None,
+}
+
+/// Return value of `Machine::execute` method
+type ExecutionResult = Result<NextOperation, ExecutionError>;
 
 pub struct Machine<I, O>
 where
@@ -23,6 +36,7 @@ where
     I: io::BufRead,
     O: io::Write,
 {
+    /// Returns Machine instance with specified input and output streams.
     pub fn new(input: I, output: O) -> Self {
         Machine {
             registers: Registers::default(),
@@ -32,72 +46,68 @@ where
         }
     }
 
-    pub fn execute(&mut self, op: Op) -> Result<(), ExitCode> {
-        use Op::*;
-        let stack = &mut self.stack;
-
-        match op {
-            Add => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                stack.push(a + b);
-            }
-            Sub => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                stack.push(a - b);
-            }
-            Mul => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                stack.push(a * b);
-            }
-            Div => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                stack.push(a / b);
-            }
-            Mod => {
-                let b = stack.pop()?;
-                let a = stack.pop()?;
-                stack.push(a % b);
-            }
-            Input => {
-                let mut buf = String::new();
-                print!("Enter number: ");
-                let input = loop {
-                    self.input
-                        .read_line(&mut buf)
-                        .map_err(|_| ExitCode::InputError)?;
-                    if let Ok(x) = buf.parse() {
-                        break x;
-                    } else {
-                        print!("Try again:")
-                    }
-                };
-                stack.push(input);
-            }
-            Output => println!("{}", stack.pop()?),
-            Halt => {
-                write!(&mut self.output, "Program terminated successfully")
-                    .map_err(|_| ExitCode::OutputError)?;
-                return Err(ExitCode::Success);
-            }
-            PushValue(Value(v)) => stack.push(v),
-            PushRegister(r) => stack.push(self.registers[r]),
-            PopRegister(r) => self.registers[r] = stack.pop()?,
-        };
+    /// Executes compiled program.
+    pub fn execute_program(&mut self, bytes: &[u8]) -> Result<(), ExecutionError> {
+        let mut idx = 0;
+        while idx < bytes.len() {
+            let op = Op::decompile(&bytes[idx..])?;
+            self.execute(op.value)?;
+            idx += op.bytes_read;
+        }
         Ok(())
     }
 
-    pub fn execute_program(&mut self, bytes: &[u8]) -> Result<(), String> {
-        let mut idx = 0;
-        while idx < bytes.len() {
-            let (op, op_len) = read_op(&bytes[idx..])?;
-            self.execute(op)?;
-            idx += op_len;
-        }
-        Err("Program ended")?
+    pub fn execute(&mut self, op: Op) -> ExecutionResult {
+        use Op::*;
+
+        match op {
+            Add => self.binary_fn(|a, b| a + b)?,
+            Sub => self.binary_fn(|a, b| a - b)?,
+            Mul => self.binary_fn(|a, b| a * b)?,
+            Div => self.binary_fn(|a, b| a / b)?,
+            Mod => self.binary_fn(|a, b| a % b)?,
+            Input => self.input()?,
+            Output => self.output()?,
+            Halt => return Ok(NextOperation::None),
+            PushValue(Value(v)) => self.stack.push(v),
+            PushRegister(r) => self.stack.push(self.registers[r]),
+            PopRegister(r) => self.registers[r] = self.stack.pop()?,
+        };
+
+        let offset = OpCode::from(&op).op_len().try_into().unwrap();
+        Ok(NextOperation::Offset(offset))
+    }
+
+    fn binary_fn<F>(&mut self, f: F) -> Result<(), ExecutionError>
+    where
+        F: FnOnce(i32, i32) -> i32,
+    {
+        let b = self.stack.pop()?;
+        let a = self.stack.pop()?;
+        let result = f(a, b);
+        self.stack.push(result);
+        Ok(())
+    }
+
+    fn input(&mut self) -> Result<(), ExecutionError> {
+        let mut buf = String::new();
+        print!("Enter number: ");
+        let input = loop {
+            self.input.read_line(&mut buf).map_err(InputError::from)?;
+            if let Ok(x) = buf.parse() {
+                break x;
+            } else {
+                print!("Try again: ");
+            }
+        };
+        self.stack.push(input);
+        Ok(())
+    }
+
+    fn output(&mut self) -> Result<(), ExecutionError> {
+        let value = self.stack.pop()?;
+        writeln!(self.output, "{}", value).map_err(OutputError::from)?;
+        Ok(())
     }
 }
 

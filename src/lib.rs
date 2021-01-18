@@ -1,6 +1,6 @@
 // #![warn(missing_docs)]
-#![warn(clippy::missing_const_for_fn)]
+extern crate thiserror;
 
+pub mod executor;
 pub mod machine_code;
 pub mod models;
-pub mod executor;

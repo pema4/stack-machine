@@ -1,13 +1,13 @@
 use std::{fmt::Display, str::FromStr};
 
-use super::Op;
+use super::{Op, StatementParseError};
 
 pub enum Statement {
     Op(Op),
 }
 
 impl FromStr for Statement {
-    type Err = String;
+    type Err = StatementParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let op = s.parse()?;

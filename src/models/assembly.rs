@@ -1,63 +1,53 @@
-use std::{convert::TryFrom, fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use super::*;
 
 pub struct Assembly(Vec<Statement>);
 
-impl TryFrom<Vec<Statement>> for Assembly {
-    type Error = String;
-    fn try_from(statements: Vec<Statement>) -> Result<Self, Self::Error> {
-        Ok(Assembly(statements))
-    }
-}
-
 impl Assembly {
     pub fn statements(&self) -> &Vec<Statement> {
         &self.0
     }
+
+    pub fn new(statements: Vec<Statement>) -> Assembly {
+        Assembly(statements)
+    }
 }
 
-#[cfg(windows)]
-const LINE_ENDING: &'static str = "\r\n";
-#[cfg(not(windows))]
-const LINE_ENDING: &'static str = "\n";
-
 impl FromStr for Assembly {
-    type Err = String;
+    type Err = AssemblyParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let lines = s
+        let statements = s
             .lines()
             .enumerate()
             .filter(|&(_, s)| !s.is_empty())
-            .map(|(i, s)| s.parse().map_err(|msg| (i, msg)));
+            .map(|(line, s)| s.parse().map_err(|error| LineWithError { line, error }));
 
-
-            
-        let mut assembly = Vec::new();
-        let mut errors = Vec::new();
-        for line in lines {
-            match line {
-                Ok(line) => {
-                    if errors.is_empty() {
-                        assembly.push(line)
-                    }
-                }
-                Err(err) => errors.push(err),
-            }
-        }
+        let (assembly, errors) = partition_results(statements);
 
         if errors.is_empty() {
             Ok(Assembly(assembly))
         } else {
-            let error = errors
-                .iter()
-                .map(|(i, err)| format!("Line {}: {}", i + 1, err))
-                .collect::<Vec<String>>()
-                .join(LINE_ENDING);
-            Err(error)
+            Err(AssemblyParseError { errors })
         }
     }
+}
+
+fn partition_results<T, U>(results: impl Iterator<Item = Result<T, U>>) -> (Vec<T>, Vec<U>) {
+    let mut oks = Vec::new();
+    let mut errors = Vec::new();
+    for result in results {
+        match result {
+            Ok(x) => {
+                if errors.is_empty() {
+                    oks.push(x)
+                }
+            }
+            Err(x) => errors.push(x),
+        }
+    }
+    (oks, errors)
 }
 
 impl Display for Assembly {

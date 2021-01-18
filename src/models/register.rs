@@ -1,4 +1,5 @@
-use std::{fmt::Display, str::FromStr};
+use super::ArgumentParseError;
+use std::{fmt, str};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Register {
@@ -8,8 +9,8 @@ pub enum Register {
     D = 3,
 }
 
-impl FromStr for Register {
-    type Err = String;
+impl str::FromStr for Register {
+    type Err = ArgumentParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use Register::*;
@@ -19,12 +20,12 @@ impl FromStr for Register {
             "B" => Ok(B),
             "C" => Ok(C),
             "D" => Ok(D),
-            x => Err(format!("Unknown register: {}", x)),
+            x => Err(ArgumentParseError::WrongRegister(x.to_owned())),
         }
     }
 }
 
-impl Display for Register {
+impl fmt::Display for Register {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Register::*;
 
