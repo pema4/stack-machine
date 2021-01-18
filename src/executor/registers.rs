@@ -1,5 +1,5 @@
-use std::ops::{Index, IndexMut};
 use crate::models::Register;
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Default)]
 pub struct Registers {

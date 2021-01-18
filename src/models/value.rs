@@ -1,5 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
+use super::ArgumentParseError;
+
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct Value(pub i32);
 
@@ -16,11 +18,14 @@ impl Value {
 }
 
 impl FromStr for Value {
-    type Err = String;
+    type Err = ArgumentParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let number = s.parse().map_err(|_| format!("Incorrect integer: {}", s))?;
-        Ok(Value(number))
+        if let Ok(number) = s.parse() {
+            Ok(Value(number))
+        } else {
+            Err(ArgumentParseError::WrongValue(s.to_owned()))
+        }
     }
 }
 

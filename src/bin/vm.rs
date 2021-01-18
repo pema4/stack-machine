@@ -1,44 +1,27 @@
-use std::{env, fmt};
-use std::io;
-use std::fs;
-use std::error;
 use stack_machine::executor::Machine;
+use std::env;
+use std::error;
+use std::fs;
+use std::io;
 
-#[derive(Debug)]
-enum VmError {
-    UsageError,
-}
-
-impl fmt::Display for VmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            VmError::UsageError => write!(f, "Usage: vm path/to/program.s")
-        }
-    }
-}
-
-impl error::Error for VmError {}
-
-fn inner_main() -> Result<(), Box<dyn error::Error>> {
+fn main() -> Result<(), Box<dyn error::Error>> {
     let args: Vec<String> = env::args().collect();
     match &args[1..] {
-        [program] => {
-            let program = fs::read(program)?;
-            let input = io::stdin();
-            let output = io::stdout();
-            let mut machine = Machine::new(
-                input.lock(),
-                output.lock(),
-            );
-            machine.execute_program(&program[..])?;
-        },
-        _ => Err(VmError::UsageError)?,
+        [program] => run(program)?,
+        _ => usage(),
     };
     Ok(())
 }
 
-fn main() {
-    if let Err(err) = inner_main() {
-        println!("{}", err);
-    }
+fn run(program: &str) -> Result<(), Box<dyn error::Error>> {
+    let program = fs::read(program)?;
+    let input = io::stdin();
+    let output = io::stdout();
+    Machine::new(input.lock(), output.lock()).execute_program(&program[..])?;
+    println!("Program terminated successfully!");
+    Ok(())
+}
+
+fn usage() {
+    println!("Usage: vm path/to/program.s");
 }
