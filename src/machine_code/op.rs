@@ -26,7 +26,7 @@ impl Decompile for Op {
     fn decompile(bytes: &[u8]) -> Result<DecompileResult<Self>, Self::Error> {
         use OpCode::*;
 
-        let op_code = OpCode::try_from(bytes[0]).map_err(|_| todo!()).unwrap(); // todo
+        let op_code = OpCode::try_from(bytes[0])?;
 
         let op = match (op_code, &bytes[1..]) {
             (Add, _) => Op::Add,
