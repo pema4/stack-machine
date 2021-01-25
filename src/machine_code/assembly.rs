@@ -34,3 +34,41 @@ impl Compile for Assembly {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use crate::models::*;
+
+    fn test_compile_decompile(statements: Vec<Statement>) {
+        let asm = Assembly::new(statements);
+        let mut machine_code = Vec::new();
+        asm.compile(&mut machine_code).unwrap();
+        let asm_again = Assembly::decompile(machine_code.as_ref()).unwrap().value;
+        let pairs_iter = asm.statements().iter().zip(asm_again.statements());
+        for (left, right) in pairs_iter {
+            let Statement::Op(left) = left;
+            let Statement::Op(right) = right;
+            assert_eq!(left, right);
+        }
+    }
+
+    #[test]
+    fn one_plus_three() {
+        test_compile_decompile(vec![
+            Statement::Op(Op::PushValue(Value(1))),
+            Statement::Op(Op::PushValue(Value(2))),
+            Statement::Op(Op::Add),
+        ]);
+    }
+
+    #[test]
+    fn calculate_answer() {
+        test_compile_decompile(vec![
+            Statement::Op(Op::PushValue(Value(41))),
+            Statement::Op(Op::PushValue(Value(1))),
+            Statement::Op(Op::Add),
+        ]);
+    }
+}
