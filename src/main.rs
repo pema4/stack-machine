@@ -98,7 +98,7 @@ fn main() {
 
     let config = Config::new(&args).unwrap_or_else(|err| {
         eprintln!("Usage error: {}", err);
-        eprintln!("{}", USAGE);
+        eprintln!("Usage: {}", USAGE);
         process::exit(2);
     });
 
@@ -121,8 +121,8 @@ fn try_main(config: &Config) -> MyResult {
 }
 
 fn help() -> () {
-    println!("Usage:\n {}", USAGE);
-    println!("Examples:\n {}", EXAMPLES);
+    println!("Usage:\n{}", USAGE);
+    println!("Examples:\n{}", EXAMPLES);
 }
 
 fn execute(input: &Option<&path::Path>) -> MyResult {
@@ -173,13 +173,13 @@ fn decompile(
     Ok(())
 }
 
-const USAGE: &'static str = "
+const USAGE: &'static str = "\
 smachine -c [path/to/input.sasm] path/to/output/s
 smachine -d [path/to/input.s] path/to/output.sasm
 smachine -x [path/to/input.s]
 ";
 
-const EXAMPLES: &'static str = "
+const EXAMPLES: &'static str = "\
 Execute compiled binary 'a.s':
 smachine -x a.s
 
